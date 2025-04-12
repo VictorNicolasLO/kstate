@@ -1,0 +1,10 @@
+{
+  "name": "kstate",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "kafkajs": "^2.2.4",
+    "redis": "^4.7.0"
+  }
+}
