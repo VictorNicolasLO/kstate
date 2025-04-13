@@ -15,7 +15,7 @@ export type ReducerResponse<T> = {
     reactions: {
         topic: string,
         key: string,
-        message: T
+        message: any
     }[]
 }
 
@@ -26,4 +26,4 @@ export type ReducerCtx = {
 }
 
 
-export type reducerFn<T> = (message: any, key:string ,state?: T) => ReducerResponse<T>
+export type ReducerCb<T> = ( message: any, key:string, state: T | undefined, ctx: ReducerCtx) => ReducerResponse<T>
