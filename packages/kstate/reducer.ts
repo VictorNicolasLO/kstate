@@ -50,7 +50,7 @@ export const startReducer = async <T>(
 
     // Start consumer
     const producers = new Map<number, Producer>()
-    const offsetsMap = new Map<number, number>()
+
 
     const consumer = kafkaClient.consumer({ groupId })
     await consumer.connect()
@@ -76,7 +76,7 @@ export const startReducer = async <T>(
         eachBatchAutoResolve: false,
         eachBatch: async (payload) => {
             const { batch, resolveOffset, heartbeat } = payload
-            const { messages, firstOffset, lastOffset } = batch
+            const { messages } = batch
             const partition = batch.partition
 
             const producer = producers.get(partition)
@@ -105,8 +105,8 @@ export const startReducer = async <T>(
 
 
                 const lastOffsetinDb = states[0]
-                if (lastOffsetinDb !== offsetsMap.get(partition))
-                    throw new Error(`Offsets not equal, ${lastOffset} != ${offsetsMap.get(partition)}`)
+                // if (lastOffsetinDb !== offsetsMap.get(partition))
+                //     throw new Error(`Offsets not equal, ${lastOffset} != ${offsetsMap.get(partition)}`)
                     /// TODO Make recovery
 
                 for (const i in keySets) {
@@ -158,7 +158,13 @@ export const startReducer = async <T>(
                     acks: -1,
                     topicMessages: reactions
                 })
-
+                if(!batchResponse[0] || !batchResponse[0].offset)
+                    throw new Error(`Batch response is empty or offset is not defined`)
+                const lastSnapshotOffsetSent = parseInt(batchResponse[0].offset, 10)
+                if (lastOffsetinDb !== lastSnapshotOffsetSent - 1)
+                    throw new Error(`Offsets not equal, ${lastOffsetinDb} != ${lastSnapshotOffsetSent} - 1`)
+   
+                nextStates[lastOffsetSnapshotTopic(partition)] = lastSnapshotOffsetSent // TODO Confirm this operations goes to the end
                 await heartbeat()
                 await tx.sendOffsets({
                     consumerGroupId: groupId,
@@ -171,10 +177,8 @@ export const startReducer = async <T>(
                     }],
                 });
                 await tx.commit()
-                if (batchResponse[0].offset)
-                    nextStates[lastOffsetSnapshotTopic(partition)] = parseInt(batchResponse[0].offset, 10)
+                
                 await redisClient.mSet(nextStates)
-                offsetsMap.set(partition, parseInt(batch.lastOffset(), 10))
             } catch (err) {
                 console.error('Transaction failed, aborting:', err);
                 await tx.abort();
