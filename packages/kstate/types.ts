@@ -3,15 +3,15 @@ import { RedisClientOptions } from "redis"
 
 export type RedisOptions = {
     client: RedisClientOptions,
-    prefix: string
+    prefix?: string
 }
 export type KafkaOptions = {
     client: KafkaConfig,
-    prefix: string
+    prefix?: string
 }
 
 export type ReducerResponse<T> = {
-    state: T,
+    state: T | undefined,
     reactions: {
         topic: string,
         key: string,
@@ -27,3 +27,7 @@ export type ReducerCtx = {
 
 
 export type ReducerCb<T> = ( message: any, key:string, state: T | undefined, ctx: ReducerCtx) => ReducerResponse<T>
+
+export type TopicConfig<T> = {
+    reduce: (cb: ReducerCb<T>) => void
+}
