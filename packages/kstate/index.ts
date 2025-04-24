@@ -17,11 +17,12 @@ const fromTopic = (redisClient: ReturnType<typeof createClient>, kafkaClient: Ka
         reduce: (cb: ReducerCb<T>) => startReducer(cb, kafkaClient, redisClient, topic)
     })
 
-export const createRedisKState = (
+export const createRedisKState =  async (
     redisOptions: RedisOptions,
     kafkaOptions: KafkaOptions
 ) => {
     const redisClient = createClient(redisOptions.client)
+    await redisClient.connect()
     const kafkaClient = new Kafka(kafkaOptions.client)
     return {
         fromTopic: fromTopic(redisClient, kafkaClient),

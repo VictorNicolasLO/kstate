@@ -36,7 +36,7 @@ await admin.disconnect()
 
 
 
-const kstate = createRedisKState(
+const kstate = await createRedisKState(
     {
         client: {
             url: 'redis://localhost:6379',
@@ -53,9 +53,9 @@ const kstate = createRedisKState(
 kstate
     .fromTopic<{ name: string, tasks: number }>('users')
     .reduce((message, key, state) => {
-        console.log('message', message)
-        console.log('key', key)
-        console.log('state', state)
+        // console.log('message', message)
+        // console.log('user key', key)
+        // console.log('state', state)
         if (!state) {
             state = {
                 name: message.name,
@@ -79,34 +79,34 @@ kstate
     })
 
 
-// kstate
-//     .fromTopic<{ description: string, userKey: string }>('tasks')
-//     .reduce((message, key, state) => {
-//         console.log('message', message)
-//         console.log('key', key)
-//         console.log('state', state)
-//         if (!state) {
-//             state = {
-//                 description: message.description,
-//                 userKey: message.userKey
-//             }
-//             return {
-//                 state: state,
-//                 reactions: [
-//                     {
-//                         topic: 'users',
-//                         key: message.userKey,
-//                         message: {
-//                             name: message.description,
-//                             tasks: 1
-//                         }
-//                     }
-//                 ]
-//             }
-//         }
-//         else
-//             return {
-//                 state,
-//                 reactions: []
-//             }
-//     })
+kstate
+    .fromTopic<{ description: string, userKey: string }>('tasks')
+    .reduce((message, key, state) => {
+        // console.log('message', message)
+        // console.log('key', key)
+        // console.log('state', state)
+        if (!state) {
+            state = {
+                description: message.description,
+                userKey: message.userKey
+            }
+            return {
+                state: state,
+                reactions: [
+                    {
+                        topic: 'users',
+                        key: message.userKey,
+                        message: {
+                            name: message.description,
+                            tasks: 1
+                        }
+                    }
+                ]
+            }
+        }
+        else
+            return {
+                state,
+                reactions: []
+            }
+    })

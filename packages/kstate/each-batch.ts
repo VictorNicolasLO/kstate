@@ -2,7 +2,7 @@ import { EachBatchPayload, Producer, TopicMessages } from "kafkajs"
 import { createClient, RedisClientType } from "redis"
 import { ReducerCb } from "./types"
 import { PartitionControl, State } from "./reducer.types"
-import { syncDB } from "./sync-db"
+
 
 export const eachBatch = async <T>(
     producers: Map<number, Producer>, 
@@ -16,10 +16,11 @@ export const eachBatch = async <T>(
     syncDB: ()=> Promise<void>,
 ) => {
     const { batch, resolveOffset, heartbeat } = payload
+    console.log('Batch', batch.topic, batch.partition, batch.messages.length, )
     const { messages } = batch
     const partition = batch.partition
     const partitionControlKey = getPartitionControlKey(partition)
-
+    const topicPrefix = `${topic}-`
     const producer = producers.get(partition)
     if (!producer)
         throw new Error(`No producer found for partition ${partition}`)
@@ -30,12 +31,12 @@ export const eachBatch = async <T>(
         const keySets: string[] = [partitionControlKey]
         const messageGroups: { [x: string]: { offset: string, msg: any }[] } = {}
         for (const message of messages) {
-            const key = message.key.toString()
-            const value = message.value.toString()
+            const key = message.key ?  message.key.toString() : 'UNDEFINED'
+            const value =  message.value ? JSON.parse(message.value.toString())  : {}
             if (messageGroups[key]) {
                 messageGroups[key].push({ offset: message.offset, msg: value })
             } else {
-                keySets.push(key)
+                keySets.push(key) // TODO: PUT PREFIXES
                 messageGroups[key] = [{ offset: message.offset, msg: value }]
             }
         }
@@ -47,7 +48,11 @@ export const eachBatch = async <T>(
         
 
 
-        const lastPartitionControl:PartitionControl = states[0] ?  JSON.parse(states[0])  : { snapshotOffset: -1 }
+        const lastPartitionControl:PartitionControl = states[0] ?  JSON.parse(states[0])  : { 
+            baseOffset: 0,
+            lastBatchSize: 0,
+            predictedNextOffset: 0,
+         }
         
         // if (lastOffsetinDb !== offsetsMap.get(partition))
         //     throw new Error(`Offsets not equal, ${lastOffset} != ${offsetsMap.get(partition)}`)
@@ -64,14 +69,15 @@ export const eachBatch = async <T>(
             for (const message of messages) {
                 if(parseInt(message.offset, 10) <= state.inputOffset) 
                     throw new Error(`Message offset ${message.offset} is less than or equal to state offset ${state.inputOffset}`)
-                    /// TODO Make backwards recovery
-                const { state: newState, reactions: newReactions } = cb(message, key, state.payload, {
+                    /// TODO Make backwards recovery, use previousBatchBaseOffset in the state to start recovery from there
+                const { state: newState, reactions: newReactions } = cb(message.msg, key, state.payload, {
                     topic,
                     partition,
                     offset: parseInt(message.offset, 10),
                 });
-
+                // console.log('reactions', newReactions)
                 state.version = (state.version || 0) + 1;
+                state.previousBatchBaseOffset = lastPartitionControl.baseOffset; //
                 state.inputOffset = parseInt(message.offset, 10);
                 state.payload = newState
 
@@ -103,15 +109,19 @@ export const eachBatch = async <T>(
             acks: -1,
             topicMessages: reactions
         })
-        if(!batchResponse[0] || !batchResponse[0].baseOffset)
+        const snapshotIndex = batchResponse.findIndex(({topicName})=>topicName === snapshotTopic) 
+        if(!batchResponse[snapshotIndex] || !batchResponse[snapshotIndex].baseOffset)
             throw new Error(`Batch response is empty or base offset is not defined ${JSON.stringify(batchResponse)}`)
 
-        // TODO C?HECK OFFSETS LOGIC
-        const firstSnapshotOffsetSent = parseInt(batchResponse[0].baseOffset, 10)
-        const lastSnapshotOffsetSent = firstSnapshotOffsetSent + reactions[0].messages.length - 1
-        if (lastPartitionControl.snapshotOffset !== firstSnapshotOffsetSent - 1)
-            throw new Error(`Offsets not equal, ${lastPartitionControl.snapshotOffset} != ${firstSnapshotOffsetSent} - 1`)
-        lastPartitionControl.snapshotOffset = lastSnapshotOffsetSent
+        // TODO CHECK OFFSETS LOGIC
+        const baseOffset = parseInt(batchResponse[snapshotIndex].baseOffset, 10)
+
+        if (lastPartitionControl.predictedNextOffset !== baseOffset )
+            throw new Error(`Offsets not equal, ${lastPartitionControl.predictedNextOffset} != ${baseOffset} ---- ${batchResponse[snapshotIndex].topicName}`)
+        lastPartitionControl.predictedNextOffset = baseOffset + messages.length + 1 // (Commit mark)
+        lastPartitionControl.baseOffset = baseOffset
+        lastPartitionControl.lastBatchSize = messages.length
+
         nextStates[partitionControlKey] = JSON.stringify(lastPartitionControl)  // TODO Confirm this operations goes to the end
         await heartbeat()
         await tx.sendOffsets({
@@ -136,8 +146,8 @@ export const eachBatch = async <T>(
     }
 
     try{
-        console.log('mset', nextStates)
-        await redisClient.mSet(nextStates)
+        // console.log('mset', nextStates)
+        await redisClient.mSet(nextStates) // TODO COnfirm this operation is atomic completely, and lock keys
     }catch(err){
         console.error('Error setting states', err)
         await syncDB()

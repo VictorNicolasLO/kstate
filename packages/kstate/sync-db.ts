@@ -1,6 +1,6 @@
 import { createClient, RedisClientType } from "redis";
 import { KafkaOptions, RedisOptions } from "./types";
-import { Kafka } from "kafkajs";
+import { Kafka, Producer } from "kafkajs";
 import { PartitionControl } from "./reducer.types";
 
 function createDeferredPromise() {
@@ -22,11 +22,35 @@ export const syncDB = async (
     partitionNumber: number,
     snapshotTopic: string,
     partitionControlKey: string,
+    producer: Producer
 )=>{
     console.log('Syncing DB', topic, partitionNumber)
-    const partitionControl:PartitionControl =  JSON.parse(await redisClient.get(partitionControlKey)) || { snapshotOffset: 0 }
-    const fromOffset = partitionControl.snapshotOffset - 1
-    let toOffset: number | undefined = undefined
+    const partitionControl:PartitionControl =  JSON.parse(await redisClient.get(partitionControlKey)) || { 
+        baseOffset: 0,
+        lastBatchSize: 0,
+        predictedNextOffset: 0,
+    }
+
+    const fromOffset = partitionControl.baseOffset
+
+    /// TODO Before transaction, validate fromOffset is equals to current "partition offset watermark" if so -> is up to date so return and resolve
+
+    const tx = await producer.transaction()
+    const controlSent = await tx.send({
+        topic: snapshotTopic,
+        messages: [
+            {
+                key: partitionControlKey + '_CONTROL_KEY',
+                value: JSON.stringify(partitionControl),
+                partition: partitionNumber,
+            },
+        ],
+    })
+    await tx.commit()
+    console.log('Control sent', controlSent[0])
+    if(!controlSent[0].baseOffset)
+        throw new Error(`Offset not found for partition ${partitionNumber}`)
+    const toOffset: number  = parseInt(controlSent[0].baseOffset, 10) 
     const deferredPromise =  createDeferredPromise()
     const consumer = kafkaClient.consumer({groupId: `sync-consumer-${topic}-${partitionNumber}`, readUncommitted: false}); 
     ////TODO Fix or test uncomitted messages // 👈 no group
@@ -38,38 +62,55 @@ export const syncDB = async (
     const topicsoffsets = await admin.fetchTopicOffsets(snapshotTopic);
     await admin.disconnect();
 
-
-
+    // consumer.on('consumer.start_batch_process', (e)=>{
+    //     if(e.payload.batchSize === 0) {
+    //         console.log('Batch empty', e)
+    //         return
+    //     }
+    //     console.log('BATCH PROCESS STARTED', e)
+    // })
     await consumer.run({
         eachBatch: async (payload) => {
+
             console.log('Batch', payload.batch.partition, partitionNumber, payload.batch.firstOffset(), payload.batch.lastOffset())
             if(payload.batch.partition !== partitionNumber) {
                 return
             }
             const { batch, heartbeat } = payload;
+    
             const states = {}
             for (const message of batch.messages) {
+               
                 const key = message.key.toString();
                 const value = message.value.toString();
                 states[key] = value;
-            
+                if(message.offset === toOffset + '') {
+                    console.log('Offset found', partitionNumber, message.offset)
+                    console.log('Syncing DB DONE Batch', topic, partitionNumber, fromOffset, toOffset)
+                    const partitionControl: PartitionControl = {
+                        baseOffset: toOffset, 
+                        lastBatchSize: 1, 
+                        predictedNextOffset: toOffset + 1 + 1 // offset + batchSize + commit mark 
+                    }
+                    states[partitionControlKey] = JSON.stringify(partitionControl);
+                    await redisClient.mSet(states)
+                    consumer.stop().then(()=> consumer.disconnect());
+                    deferredPromise.resolve()
+                    return
+                }
             }
-            const offsetStr = payload.batch.lastOffset()
+            const offsetStr = batch.messages[batch.messages.length - 1].offset
             if(!offsetStr) {
                 throw new Error(`Offset not found for partition ${partitionNumber}`)
             }
             const offset = parseInt(offsetStr, 10)
-            const partitionControl: PartitionControl = {snapshotOffset: offset}
-            states[partitionControlKey] = JSON.stringify(partitionControl);
-            await redisClient.mSet(states) 
-            console.log('comparing', offset, toOffset)
-            if (toOffset && offset >= toOffset) {
-                deferredPromise.resolve()
-                console.log('Syncing DB DONE Batch', topic, partitionNumber, fromOffset, toOffset)
-                await consumer.disconnect();
-                
-                
+            const partitionControl: PartitionControl = {
+                baseOffset: offset, 
+                lastBatchSize: 0, 
+                predictedNextOffset: offset 
             }
+            states[partitionControlKey] = JSON.stringify(partitionControl);
+            await redisClient.mSet(states)
             await heartbeat();
         },
     })
@@ -81,8 +122,7 @@ export const syncDB = async (
             throw new Error(`Offset not found for partition ${partition.partitionId}`)
         }
         if(partition.partitionId == partitionNumber) {
-            toOffset = parseInt(offset, 10)  - 1
-            if(toOffset === -1 || fromOffset === toOffset){
+            if(toOffset === 0 || fromOffset === toOffset){
                 console.log('Topic not having any message', partition.partitionId)
                 await consumer.disconnect();
                 deferredPromise.resolve()
@@ -90,8 +130,7 @@ export const syncDB = async (
                 return
             }else {
                 console.log('Topic having messages', partition.partitionId , fromOffset, toOffset, offsetHigh)
-                consumer.seek({offset: fromOffset+'', topic: snapshotTopic, partition: partition.partitionId})
-                
+                consumer.seek({offset: fromOffset +'', topic: snapshotTopic, partition: partition.partitionId})
             }
         }else 
             consumer.seek({offset, topic: snapshotTopic, partition: partition.partitionId})

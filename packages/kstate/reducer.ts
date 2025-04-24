@@ -22,7 +22,7 @@ export const startReducer = async <T>(
     topic: string,
     concurrencyNumber: number = 1,
 ) => {
-    await redisClient.connect()
+    // await redisClient.connect()
     // Create compacted topic if not exists
     const groupId = `kstate-${topic}-group`
     const snapshotTopic = `${topic}-snapshots`
@@ -42,7 +42,7 @@ export const startReducer = async <T>(
     const producers = new Map<number, Producer>()
 
 
-    const consumer = kafkaClient.consumer({ groupId, readUncommitted: false }) // 👈 no group
+    const consumer = kafkaClient.consumer({ groupId, readUncommitted: false }) 
     await consumer.connect()
     await consumer.subscribe({ topic, fromBeginning: false })
     consumer.on('consumer.group_join', async (e) => {
@@ -53,39 +53,23 @@ export const startReducer = async <T>(
         producers.clear()
         const assignedPartitions = e.payload.memberAssignment[topic] || []
         consumer.pause([ {topic, partitions: assignedPartitions }])
-
-        await Promise.all(assignedPartitions.map((partition)=>  syncDB(
-            kafkaClient,
-            redisClient,
-            topic,
-            partition,
-            snapshotTopic,
-            getPartitionControlKey(partition)
-        ) ))
-
         await Promise.all(assignedPartitions.map(async (partition) => {
             if (!producers.has(partition)) {
                 const producer = await createTransactionalProducer(kafkaClient, topic, partition)
                 producers.set(partition, producer)
             }
         }))
-
-        // for (const partition of assignedPartitions) {
-        //     await syncDB(
-        //         kafkaClient,
-        //         redisClient,
-        //         topic,
-        //         partition,
-        //         snapshotTopic,
-        //         getPartitionControlKey(partition)
-        //     )
-        //     if (!producers.has(partition)) {
-        //         const producer = await createTransactionalProducer(kafkaClient, topic, partition)
-        //         producers.set(partition, producer)
-        //     }
+        await Promise.all(assignedPartitions.map((partition)=>  syncDB(
+            kafkaClient,
+            redisClient,
+            topic,
+            partition,
+            snapshotTopic,
+            getPartitionControlKey(partition),
+            producers.get(partition) as Producer
+        ) ))
 
 
-        // }
         consumer.resume([ {topic, partitions: assignedPartitions }])
         console.log('Group join DONE')
     })
@@ -110,7 +94,8 @@ export const startReducer = async <T>(
                 topic,
                 payload.batch.partition,
                 snapshotTopic,
-                getPartitionControlKey(payload.batch.partition)
+                getPartitionControlKey(payload.batch.partition),
+                producers.get(payload.batch.partition) as Producer
             )
         ),
 
