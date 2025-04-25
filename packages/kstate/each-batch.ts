@@ -15,7 +15,7 @@ export const eachBatch = async <T>(
     payload:EachBatchPayload,
     syncDB: ()=> Promise<void>,
 ) => {
-    const { batch, resolveOffset, heartbeat } = payload
+    const { batch, heartbeat } = payload
     console.log('Batch', batch.topic, batch.partition, batch.messages.length, )
     const { messages } = batch
     const partition = batch.partition

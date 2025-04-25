@@ -69,9 +69,9 @@ export const startReducer = async <T>(
             producers.get(partition) as Producer
         ) ))
 
-
+        console.log('Group join DONE -- resume', assignedPartitions)
         consumer.resume([ {topic, partitions: assignedPartitions }])
-        console.log('Group join DONE')
+       
     })
 
     // Consuming messages

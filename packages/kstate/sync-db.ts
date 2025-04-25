@@ -61,14 +61,7 @@ export const syncDB = async (
     const topicDetails = await admin.fetchTopicMetadata({ topics: [snapshotTopic] });
     const topicsoffsets = await admin.fetchTopicOffsets(snapshotTopic);
     await admin.disconnect();
-
-    // consumer.on('consumer.start_batch_process', (e)=>{
-    //     if(e.payload.batchSize === 0) {
-    //         console.log('Batch empty', e)
-    //         return
-    //     }
-    //     console.log('BATCH PROCESS STARTED', e)
-    // })
+    
     await consumer.run({
         eachBatch: async (payload) => {
 
@@ -94,7 +87,9 @@ export const syncDB = async (
                     }
                     states[partitionControlKey] = JSON.stringify(partitionControl);
                     await redisClient.mSet(states)
+                    console.log('mset done', topic, partitionNumber)
                     consumer.stop().then(()=> consumer.disconnect());
+                    console.log('Syncing DB resolved', topic, partitionNumber)
                     deferredPromise.resolve()
                     return
                 }
@@ -122,21 +117,11 @@ export const syncDB = async (
             throw new Error(`Offset not found for partition ${partition.partitionId}`)
         }
         if(partition.partitionId == partitionNumber) {
-            if(toOffset === 0 || fromOffset === toOffset){
-                console.log('Topic not having any message', partition.partitionId)
-                await consumer.disconnect();
-                deferredPromise.resolve()
-                console.log('Syncing DB DONE', topic, partitionNumber, fromOffset, toOffset)
-                return
-            }else {
-                console.log('Topic having messages', partition.partitionId , fromOffset, toOffset, offsetHigh)
-                consumer.seek({offset: fromOffset +'', topic: snapshotTopic, partition: partition.partitionId})
-            }
+            console.log('Topic having messages', partition.partitionId , fromOffset, toOffset, offsetHigh)
+            consumer.seek({offset: fromOffset +'', topic: snapshotTopic, partition: partition.partitionId})
         }else 
             consumer.seek({offset, topic: snapshotTopic, partition: partition.partitionId})
     }
-    if(!toOffset)
-        throw new Error(`Offset not found for partition ${partitionNumber}`)
 
 
     await deferredPromise.promise

@@ -20,14 +20,17 @@ const producer = kafka.producer({
 const topic = 'users'
 
 await producer.connect()
+
 // await producer.send({
 //     topic: 'users',
 //     messages: new Array(1).fill('').map(()=> ({value : '{"name":"test"}', key: 'test7'})) ,
 // })
 
-const elements = new Array(100000).fill('').map((a,index)=> ({value : JSON.stringify({"description":"test", "userKey":"test7"}), key: '4t'+index}))
+/// ----- 
+
+const elements = new Array(100000).fill('').map((a,index)=> ({value : JSON.stringify({"description":"test", "userKey":"test7"}), key: '5t'+index}))
 console.log('elements', elements.length)
-await Promise.all(new Array(10).fill('').map(()=> producer.send({
+await Promise.all(new Array(1).fill('').map(()=> producer.send({
     topic: 'tasks',
     messages:  elements,
 })))
