@@ -21,21 +21,29 @@ const topic = 'users'
 
 await producer.connect()
 
-// await producer.send({
-//     topic: 'users',
-//     messages: new Array(1).fill('').map(()=> ({value : '{"name":"test"}', key: 'test7'})) ,
-// })
+await producer.send({
+    topic: 'users',
+    messages: new Array(1000).fill('').map(()=> ({value : '{"name":"test"}', key: 'test7'})) ,
+})
 
 /// ----- 
 
-const elements = new Array(100000).fill('').map((a,index)=> ({value : JSON.stringify({"description":"test", "userKey":"test7"}), key: '5t'+index}))
-console.log('elements', elements.length)
-await Promise.all(new Array(1).fill('').map(()=> producer.send({
-    topic: 'tasks',
-    messages:  elements,
-})))
+// const elements = new Array(100000).fill('').map((a,index)=> ({value : JSON.stringify({"description":"test", "userKey":"test7"}), key: '6t'+index}))
+// console.log('elements', elements.length)
+// await Promise.all(new Array(1).fill('').map(()=> producer.send({
+//     topic: 'tasks',
+//     messages:  elements,
+// })))
 
 
-
+// await producer.send({
+//     topic: 'subscription-node',
+//     messages: [
+//     {
+//         value : JSON.stringify({ type: 'add-subscription', id: 'SOMEID' }),
+//         key: 'SUB1|0',
+//     }
+//     ],
+// })
 
 await producer.disconnect()

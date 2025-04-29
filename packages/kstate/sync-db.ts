@@ -2,6 +2,7 @@ import { createClient, RedisClientType } from "redis";
 import { KafkaOptions, RedisOptions } from "./types";
 import { Kafka, Producer } from "kafkajs";
 import { PartitionControl } from "./reducer.types";
+import { StoreAdapter } from "./stores/store-adapter";
 
 function createDeferredPromise() {
     let resolve:any, reject: any;
@@ -17,7 +18,7 @@ function createDeferredPromise() {
 
 export const syncDB = async (
     kafkaClient: Kafka,
-    redisClient: ReturnType<typeof createClient>,
+    store: StoreAdapter,
     topic: string,
     partitionNumber: number,
     snapshotTopic: string,
@@ -25,7 +26,7 @@ export const syncDB = async (
     producer: Producer
 )=>{
     console.log('Syncing DB', topic, partitionNumber)
-    const partitionControl:PartitionControl =  JSON.parse(await redisClient.get(partitionControlKey)) || { 
+    const partitionControl:PartitionControl =  await store.get(partitionControlKey) ?? { 
         baseOffset: 0,
         lastBatchSize: 0,
         predictedNextOffset: 0,
@@ -61,7 +62,7 @@ export const syncDB = async (
     const topicDetails = await admin.fetchTopicMetadata({ topics: [snapshotTopic] });
     const topicsoffsets = await admin.fetchTopicOffsets(snapshotTopic);
     await admin.disconnect();
-    
+
     await consumer.run({
         eachBatch: async (payload) => {
 
@@ -73,7 +74,14 @@ export const syncDB = async (
     
             const states = {}
             for (const message of batch.messages) {
-               
+               if(message.key === undefined || message.key === null) {
+                    console.log('Message without key', message)
+                    continue
+                }
+                if(message.value === undefined || message.value === null) {
+                    console.log('Message without value', message)
+                    continue
+                }
                 const key = message.key.toString();
                 const value = message.value.toString();
                 states[key] = value;
@@ -86,7 +94,7 @@ export const syncDB = async (
                         predictedNextOffset: toOffset + 1 + 1 // offset + batchSize + commit mark 
                     }
                     states[partitionControlKey] = JSON.stringify(partitionControl);
-                    await redisClient.mSet(states)
+                    await store.setManyRaw(states)
                     console.log('mset done', topic, partitionNumber)
                     consumer.stop().then(()=> consumer.disconnect());
                     console.log('Syncing DB resolved', topic, partitionNumber)
@@ -105,7 +113,7 @@ export const syncDB = async (
                 predictedNextOffset: offset 
             }
             states[partitionControlKey] = JSON.stringify(partitionControl);
-            await redisClient.mSet(states)
+            await store.setManyRaw(states)
             await heartbeat();
         },
     })
@@ -113,11 +121,12 @@ export const syncDB = async (
     for(const partition of topicDetails.topics[0].partitions) {
         const offset = topicsoffsets.find(({partition: p})=> p === partition.partitionId  )?.offset
         const offsetHigh = topicsoffsets.find(({partition: p})=> p === partition.partitionId  )?.high
+
         if(offset === undefined) {
             throw new Error(`Offset not found for partition ${partition.partitionId}`)
         }
         if(partition.partitionId == partitionNumber) {
-            console.log('Topic having messages', partition.partitionId , fromOffset, toOffset, offsetHigh)
+            console.log('Topic having messages {partitionid, fromOffset, toOffset, offsetHigh}', partition.partitionId , fromOffset, toOffset, offsetHigh)
             consumer.seek({offset: fromOffset +'', topic: snapshotTopic, partition: partition.partitionId})
         }else 
             consumer.seek({offset, topic: snapshotTopic, partition: partition.partitionId})

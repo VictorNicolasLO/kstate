@@ -2,6 +2,7 @@ import { EachBatchPayload, Producer, TopicMessages } from "kafkajs"
 import { createClient, RedisClientType } from "redis"
 import { ReducerCb } from "./types"
 import { PartitionControl, State } from "./reducer.types"
+import { StoreAdapter } from "./stores/store-adapter"
 
 
 export const eachBatch = async <T>(
@@ -10,7 +11,7 @@ export const eachBatch = async <T>(
     snapshotTopic: string,
     groupId: string,
     topic: string,
-    redisClient: ReturnType<typeof createClient>,
+    store: StoreAdapter,
     cb: ReducerCb<T>,
     payload:EachBatchPayload,
     syncDB: ()=> Promise<void>,
@@ -41,14 +42,15 @@ export const eachBatch = async <T>(
             }
         }
 
-        const states = await redisClient.mGet(keySets) // TODO ensure this is atomic -> if not use head and tail method
+        const states = await store.getMany(keySets) // TODO ensure this is atomic -> if not use head and tail method
         await heartbeat()
         const reactions: TopicMessages[] = [{ topic: snapshotTopic, messages: [] }]
+        const snapshotReactionIndex = 0
         const existentTopics = {}
         
 
 
-        const lastPartitionControl:PartitionControl = states[0] ?  JSON.parse(states[0])  : { 
+        const lastPartitionControl:PartitionControl = states[0]  ??  { 
             baseOffset: 0,
             lastBatchSize: 0,
             predictedNextOffset: 0,
@@ -60,7 +62,7 @@ export const eachBatch = async <T>(
 
         for (const i in keySets) {
 
-            let state: State = states[i] ? JSON.parse(states[i]) : {  }
+            let state: State = states[i] ?? {  }
             const key = keySets[i]
             if (key === partitionControlKey) {
                 continue
@@ -94,16 +96,15 @@ export const eachBatch = async <T>(
                         })
                     }
                 }
-                reactions[0].messages.push({
+                reactions[snapshotReactionIndex].messages.push({
                     value: JSON.stringify(state),
                     key: key,
                     partition: partition,
                 })
-                // resolveOffset(message.offset);
 
             }
 
-            nextStates[key] = JSON.stringify(state)
+            nextStates[key] = state
         }
         const batchResponse = await tx.sendBatch({
             acks: -1,
@@ -122,7 +123,7 @@ export const eachBatch = async <T>(
         lastPartitionControl.baseOffset = baseOffset
         lastPartitionControl.lastBatchSize = messages.length
 
-        nextStates[partitionControlKey] = JSON.stringify(lastPartitionControl)  // TODO Confirm this operations goes to the end
+        nextStates[partitionControlKey] = lastPartitionControl  // TODO Confirm this operations goes to the end
         await heartbeat()
         await tx.sendOffsets({
             consumerGroupId: groupId,
@@ -147,7 +148,7 @@ export const eachBatch = async <T>(
 
     try{
         // console.log('mset', nextStates)
-        await redisClient.mSet(nextStates) // TODO COnfirm this operation is atomic completely, and lock keys
+        await store.setMany(nextStates) // TODO COnfirm this operation is atomic completely, and lock keys
     }catch(err){
         console.error('Error setting states', err)
         await syncDB()

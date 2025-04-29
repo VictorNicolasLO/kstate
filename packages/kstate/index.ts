@@ -10,11 +10,13 @@ import {
 } from 'kafkajs'
 import { KafkaOptions, RedisOptions, ReducerCb } from './types'
 import { startReducer } from './reducer'
+import { StoreAdapter } from './stores/store-adapter'
+import { createRedisStore } from './stores/redis-store/redis-store'
 
 
-const fromTopic = (redisClient: ReturnType<typeof createClient>, kafkaClient: Kafka) =>
+const fromTopic = (store: StoreAdapter, kafkaClient: Kafka) =>
     <T>(topic: string, topicOptions?: any) => ({
-        reduce: (cb: ReducerCb<T>) => startReducer(cb, kafkaClient, redisClient, topic)
+        reduce: (cb: ReducerCb<T>) => startReducer(cb, kafkaClient, store, topic)
     })
 
 export const createRedisKState =  async (
@@ -23,9 +25,10 @@ export const createRedisKState =  async (
 ) => {
     const redisClient = createClient(redisOptions.client)
     await redisClient.connect()
+    const redisStore = createRedisStore(redisClient)
     const kafkaClient = new Kafka(kafkaOptions.client)
     return {
-        fromTopic: fromTopic(redisClient, kafkaClient),
+        fromTopic: fromTopic(redisStore, kafkaClient),
     }
 }
 

@@ -5,6 +5,10 @@
   "private": true,
   "dependencies": {
     "kafkajs": "^2.2.4",
-    "redis": "^4.7.0"
+    "redis": "^4.7.0",
+    "ulid": "^3.0.0"
+  },
+  "devDependencies": {
+    "bun-types": "^1.2.10"
   }
 }

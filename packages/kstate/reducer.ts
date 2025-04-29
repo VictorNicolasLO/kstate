@@ -4,6 +4,7 @@ import { createClient, RedisClientType } from "redis";
 import { eachBatch } from "./each-batch";
 import { buildSnapshotTopicConfig } from "./builders";
 import { syncDB } from "./sync-db";
+import { StoreAdapter } from "./stores/store-adapter";
 
 const createTransactionalProducer = async (kafkaClient: Kafka, topic: string, partition: number) => {
     const producer = kafkaClient.producer({
@@ -18,7 +19,7 @@ const createTransactionalProducer = async (kafkaClient: Kafka, topic: string, pa
 export const startReducer = async <T>(
     cb: ReducerCb<T>,
     kafkaClient: Kafka,
-    redisClient: ReturnType<typeof createClient>,
+    store: StoreAdapter,
     topic: string,
     concurrencyNumber: number = 1,
 ) => {
@@ -61,7 +62,7 @@ export const startReducer = async <T>(
         }))
         await Promise.all(assignedPartitions.map((partition)=>  syncDB(
             kafkaClient,
-            redisClient,
+            store,
             topic,
             partition,
             snapshotTopic,
@@ -85,12 +86,12 @@ export const startReducer = async <T>(
             snapshotTopic,
             groupId,
             topic,
-            redisClient,
+            store,
             cb,
             payload,
             () => syncDB(
                 kafkaClient,
-                redisClient,
+                store,
                 topic,
                 payload.batch.partition,
                 snapshotTopic,

@@ -10,13 +10,14 @@ export type KafkaOptions = {
     prefix?: string
 }
 
+export type Reaction = {
+    topic: string,
+    key: string,
+    message: any
+}
 export type ReducerResponse<T> = {
     state: T | undefined,
-    reactions: {
-        topic: string,
-        key: string,
-        message: any
-    }[]
+    reactions: Reaction[]
 }
 
 export type ReducerCtx = {
