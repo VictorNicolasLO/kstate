@@ -7,11 +7,16 @@ import { syncDB } from "./sync-db";
 import { StoreAdapter } from "./stores/store-adapter";
 
 const createTransactionalProducer = async (kafkaClient: Kafka, topic: string, partition: number) => {
+    const txId = `kstate-${topic}-producer-${partition}`
     const producer = kafkaClient.producer({
-        transactionalId: `kstate-${topic}-producer-${partition}`,
+        transactionalId: txId,
         maxInFlightRequests: 1,
         idempotent: true,
     })
+    // producer.on('producer.network.request', (e)=> {
+    //     console.log('Network request from', partition, e.payload.apiName, e.payload.correlationId)
+
+    // })
     await producer.connect()
     return producer
 }
@@ -20,10 +25,8 @@ export const startReducer = async <T>(
     cb: ReducerCb<T>,
     kafkaClient: Kafka,
     store: StoreAdapter,
-    topic: string,
-    concurrencyNumber: number = 1,
+    topic: string
 ) => {
-    // await redisClient.connect()
     // Create compacted topic if not exists
     const groupId = `kstate-${topic}-group`
     const snapshotTopic = `${topic}-snapshots`
@@ -32,7 +35,9 @@ export const startReducer = async <T>(
     const admin = kafkaClient.admin()
     await admin.connect()
     const topicDetails = await admin.fetchTopicMetadata({ topics: [topic] })
-    await admin.createTopics(buildSnapshotTopicConfig(snapshotTopic, topicDetails))
+    const snapshotConfig = buildSnapshotTopicConfig(snapshotTopic, topicDetails)
+    const concurrencyNumber = snapshotConfig.topics[0].numPartitions
+    await admin.createTopics(snapshotConfig)
     await admin.disconnect();
 
     // Sync Database with topic
@@ -67,10 +72,10 @@ export const startReducer = async <T>(
             partition,
             snapshotTopic,
             getPartitionControlKey(partition),
-            producers.get(partition) as Producer
+            producers
         ) ))
-
-        console.log('Group join DONE -- resume', assignedPartitions)
+       
+        console.log('Group join DONE -- resume', assignedPartitions, producers.size)
         consumer.resume([ {topic, partitions: assignedPartitions }])
        
     })
@@ -96,7 +101,7 @@ export const startReducer = async <T>(
                 payload.batch.partition,
                 snapshotTopic,
                 getPartitionControlKey(payload.batch.partition),
-                producers.get(payload.batch.partition) as Producer
+                producers
             )
         ),
 

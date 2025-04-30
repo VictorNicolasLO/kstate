@@ -21,10 +21,15 @@ const topic = 'users'
 
 await producer.connect()
 
-await producer.send({
-    topic: 'users',
-    messages: new Array(1000).fill('').map(()=> ({value : '{"name":"test"}', key: 'test7'})) ,
-})
+// await producer.send({
+//     topic: 'users',
+//     messages: new Array(10000).fill('').map(()=> ({value : '{"name":"test"}', key: 'test7'})) ,
+// })
+
+// await producer.send({
+//     topic: 'users',
+//     messages: new Array(10000).fill('').map(()=> ({value : '{"name":"test"}', key: 'test1'})) ,
+// })
 
 /// ----- 
 
@@ -35,15 +40,24 @@ await producer.send({
 //     messages:  elements,
 // })))
 
+/// ----
+const elements = new Array(1000).fill('').map((a,i)=> ({
+    value : JSON.stringify({ type: 'add-subscription', id: i+'SOMEID' }),
+    key: 'SUB16|0',
+}))
+console.log('elements', elements.length)
+await Promise.all(new Array(1).fill('').map(()=> producer.sendBatch({
+    topicMessages: [
+       { topic: 'subscription-node',
+        messages:  elements,}
+    ],
+})))
 
 // await producer.send({
 //     topic: 'subscription-node',
-//     messages: [
-//     {
-//         value : JSON.stringify({ type: 'add-subscription', id: 'SOMEID' }),
-//         key: 'SUB1|0',
-//     }
-//     ],
+//     messages: new Array(100000).fill('').map((val, i)=> ( )) ,
 // })
 
 await producer.disconnect()
+
+

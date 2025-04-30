@@ -17,7 +17,7 @@ export const eachBatch = async <T>(
     syncDB: ()=> Promise<void>,
 ) => {
     const { batch, heartbeat } = payload
-    console.log('Batch', batch.topic, batch.partition, batch.messages.length, )
+    console.log('Each-batch batch', batch.topic, batch.partition, batch.messages.length, )
     const { messages } = batch
     const partition = batch.partition
     const partitionControlKey = getPartitionControlKey(partition)
@@ -96,19 +96,18 @@ export const eachBatch = async <T>(
                         })
                     }
                 }
-                reactions[snapshotReactionIndex].messages.push({
-                    value: JSON.stringify(state),
-                    key: key,
-                    partition: partition,
-                })
-
             }
-
+            reactions[snapshotReactionIndex].messages.push({
+                value: JSON.stringify(state),
+                key: key,
+                partition: partition,
+            })
             nextStates[key] = state
         }
         const batchResponse = await tx.sendBatch({
             acks: -1,
-            topicMessages: reactions
+            topicMessages: reactions,
+            compression: 1,
         })
         const snapshotIndex = batchResponse.findIndex(({topicName})=>topicName === snapshotTopic) 
         if(!batchResponse[snapshotIndex] || !batchResponse[snapshotIndex].baseOffset)
@@ -119,7 +118,7 @@ export const eachBatch = async <T>(
 
         if (lastPartitionControl.predictedNextOffset !== baseOffset )
             throw new Error(`Offsets not equal, ${lastPartitionControl.predictedNextOffset} != ${baseOffset} ---- ${batchResponse[snapshotIndex].topicName}`)
-        lastPartitionControl.predictedNextOffset = baseOffset + messages.length + 1 // (Commit mark)
+        lastPartitionControl.predictedNextOffset = baseOffset + reactions[snapshotReactionIndex].messages.length + 1 // (Commit mark)
         lastPartitionControl.baseOffset = baseOffset
         lastPartitionControl.lastBatchSize = messages.length
 
@@ -136,9 +135,6 @@ export const eachBatch = async <T>(
             }],
         });
         await tx.commit()
-        
-        
-    
     } catch (err) {
         console.error('Transaction failed, aborting:', err);
         await tx.abort();

@@ -23,7 +23,7 @@ export const syncDB = async (
     partitionNumber: number,
     snapshotTopic: string,
     partitionControlKey: string,
-    producer: Producer
+    producers: Map<number, Producer>,
 )=>{
     console.log('Syncing DB', topic, partitionNumber)
     const partitionControl:PartitionControl =  await store.get(partitionControlKey) ?? { 
@@ -35,7 +35,9 @@ export const syncDB = async (
     const fromOffset = partitionControl.baseOffset
 
     /// TODO Before transaction, validate fromOffset is equals to current "partition offset watermark" if so -> is up to date so return and resolve
-
+    const producer = producers.get(partitionNumber)
+    if(!producer)
+        throw new Error(`No producer found for partition ${partitionNumber}`)
     const tx = await producer.transaction()
     const controlSent = await tx.send({
         topic: snapshotTopic,

@@ -6,7 +6,6 @@ export const createRedisStore = (
 ): StoreAdapter => {
     return {
         setMany: async (kv: any) => {
-            console.log('SET MANY', kv)
             for (const key in kv) {
                 kv[key] = JSON.stringify(kv[key])
             }
@@ -17,7 +16,7 @@ export const createRedisStore = (
             return values.map((v: string | null)=> v ? JSON.parse(v) : null)
         },
         connect: async () => {
-            await redisClient.connect() 
+            await redisClient.connect()
         } ,
         disconnect:  () => redisClient.disconnect(),
         get: async (key: string) => {
