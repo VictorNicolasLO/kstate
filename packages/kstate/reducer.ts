@@ -1,10 +1,9 @@
-import { Kafka, Producer, TopicMessages } from "kafkajs";
-import { KafkaOptions, RedisOptions, ReducerCb } from "./types";
-import { createClient, RedisClientType } from "redis";
+import { Kafka, Producer } from "kafkajs";
 import { eachBatch } from "./each-batch";
 import { buildSnapshotTopicConfig } from "./builders";
 import { syncDB } from "./sync-db";
-import { StoreAdapter } from "./stores/store-adapter";
+import { Store, StoreAdapter } from "./stores/store-adapter";
+import { ReducerCb } from "./types";
 
 const createTransactionalProducer = async (kafkaClient: Kafka, topic: string, partition: number) => {
     const txId = `kstate-${topic}-producer-${partition}`
@@ -24,7 +23,7 @@ const createTransactionalProducer = async (kafkaClient: Kafka, topic: string, pa
 export const startReducer = async <T>(
     cb: ReducerCb<T>,
     kafkaClient: Kafka,
-    store: StoreAdapter,
+    storeAdapter: StoreAdapter,
     topic: string
 ) => {
     // Create compacted topic if not exists
@@ -40,13 +39,8 @@ export const startReducer = async <T>(
     await admin.createTopics(snapshotConfig)
     await admin.disconnect();
 
-    // Sync Database with topic
-    // TODO
-
-
-    // Start consumer
     const producers = new Map<number, Producer>()
-
+    const stores = new Map<number, Store>()
 
     const consumer = kafkaClient.consumer({ groupId, readUncommitted: false }) 
     await consumer.connect()
@@ -55,6 +49,9 @@ export const startReducer = async <T>(
         console.log('Group join', e)
         for (const partition of producers.values()) {
             await partition.disconnect()
+        }
+        for (const store of stores.values()) {
+            await store.disconnect()
         }
         producers.clear()
         const assignedPartitions = e.payload.memberAssignment[topic] || []
@@ -65,9 +62,17 @@ export const startReducer = async <T>(
                 producers.set(partition, producer)
             }
         }))
+
+        await Promise.all(assignedPartitions.map(async (partition) => {
+            if (!stores.has(partition)) {
+                const store = storeAdapter.getStore(topic, partition)
+                await store.connect()
+                stores.set(partition, store)
+            }
+        }))
         await Promise.all(assignedPartitions.map((partition)=>  syncDB(
             kafkaClient,
-            store,
+            stores,
             topic,
             partition,
             snapshotTopic,
@@ -91,12 +96,12 @@ export const startReducer = async <T>(
             snapshotTopic,
             groupId,
             topic,
-            store,
+            stores,
             cb,
             payload,
             () => syncDB(
                 kafkaClient,
-                store,
+                stores,
                 topic,
                 payload.batch.partition,
                 snapshotTopic,

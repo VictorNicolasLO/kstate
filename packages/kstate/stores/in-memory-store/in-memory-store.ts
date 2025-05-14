@@ -1,9 +1,9 @@
 import { createClient } from "redis"
-import { StoreAdapter } from "../store-adapter"
+import { Store, StoreAdapter } from "../store-adapter"
 
-const memory = {}
 
-export const createInMemoryStore = (): StoreAdapter => {
+
+export const getInMemoryStore = (memory: any): Store => {
     return {
         setMany: async (kv: any) => {
             for (const key in kv) {
@@ -36,3 +36,11 @@ export const createInMemoryStore = (): StoreAdapter => {
     }
 }
 
+export const createInMemoryStore = ()=>{
+    return {
+        getStore: (topic:string, partition: number)=> {
+            const memory = {}
+            return getInMemoryStore(memory)
+        },
+    }
+}

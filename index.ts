@@ -23,7 +23,7 @@ await producer.connect()
 
 // await producer.send({
 //     topic: 'users',
-//     messages: new Array(10000).fill('').map(()=> ({value : '{"name":"test"}', key: 'test7'})) ,
+//     messages: new Array(1).fill('').map(()=> ({value : '{"name":"test"}', key: 'test4'})) ,
 // })
 
 // await producer.send({
@@ -33,25 +33,25 @@ await producer.connect()
 
 /// ----- 
 
-// const elements = new Array(100000).fill('').map((a,index)=> ({value : JSON.stringify({"description":"test", "userKey":"test7"}), key: '6t'+index}))
-// console.log('elements', elements.length)
-// await Promise.all(new Array(1).fill('').map(()=> producer.send({
-//     topic: 'tasks',
-//     messages:  elements,
-// })))
+const elements = new Array(1).fill('').map((a,index)=> ({value : JSON.stringify({"description":"test", "userKey":"test4"}), key: '7t'+index}))
+console.log('elements', elements.length)
+await Promise.all(new Array(1).fill('').map(()=> producer.send({
+    topic: 'tasks',
+    messages:  elements,
+})))
 
 /// ----
-const elements = new Array(1000).fill('').map((a,i)=> ({
-    value : JSON.stringify({ type: 'add-subscription', id: i+'SOMEID' }),
-    key: 'SUB16|0',
-}))
-console.log('elements', elements.length)
-await Promise.all(new Array(1).fill('').map(()=> producer.sendBatch({
-    topicMessages: [
-       { topic: 'subscription-node',
-        messages:  elements,}
-    ],
-})))
+// const elements = new Array(1000).fill('').map((a,i)=> ({
+//     value : JSON.stringify({ type: 'add-subscription', id: i+'SOMEID' }),
+//     key: 'SUB16|0',
+// }))
+// console.log('elements', elements.length)
+// await Promise.all(new Array(1).fill('').map(()=> producer.sendBatch({
+//     topicMessages: [
+//        { topic: 'subscription-node',
+//         messages:  elements,}
+//     ],
+// })))
 
 // await producer.send({
 //     topic: 'subscription-node',

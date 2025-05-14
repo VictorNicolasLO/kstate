@@ -1,24 +1,11 @@
-import { createClient, RedisClientType } from "redis";
-import { KafkaOptions, RedisOptions } from "./types";
 import { Kafka, Producer } from "kafkajs";
 import { PartitionControl } from "./reducer.types";
-import { StoreAdapter } from "./stores/store-adapter";
-
-function createDeferredPromise() {
-    let resolve:any, reject: any;
-    
-    const promise = new Promise((res, rej) => {
-        resolve = res;
-        reject = rej;
-    });
-
-    return { promise, resolve: resolve as (...args:any)=> void, reject: reject as (...args:any)=> void};
-}
-
+import { Store } from "./stores/store-adapter";
+import { createDeferredPromise } from "./utils/deferred-promise";
 
 export const syncDB = async (
     kafkaClient: Kafka,
-    store: StoreAdapter,
+    stores: Map<number, Store>,
     topic: string,
     partitionNumber: number,
     snapshotTopic: string,
@@ -26,6 +13,9 @@ export const syncDB = async (
     producers: Map<number, Producer>,
 )=>{
     console.log('Syncing DB', topic, partitionNumber)
+    const store = stores.get(partitionNumber)
+    if(!store)
+        throw new Error(`No store found for partition ${partitionNumber}`)
     const partitionControl:PartitionControl =  await store.get(partitionControlKey) ?? { 
         baseOffset: 0,
         lastBatchSize: 0,
@@ -54,7 +44,7 @@ export const syncDB = async (
     if(!controlSent[0].baseOffset)
         throw new Error(`Offset not found for partition ${partitionNumber}`)
     const toOffset: number  = parseInt(controlSent[0].baseOffset, 10) 
-    const deferredPromise =  createDeferredPromise()
+    const deferredPromise = createDeferredPromise()
     const consumer = kafkaClient.consumer({groupId: `sync-consumer-${topic}-${partitionNumber}`, readUncommitted: false}); 
     ////TODO Fix or test uncomitted messages // 👈 no group
     await consumer.connect();

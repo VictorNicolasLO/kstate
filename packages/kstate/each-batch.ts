@@ -2,7 +2,7 @@ import { EachBatchPayload, Producer, TopicMessages } from "kafkajs"
 import { createClient, RedisClientType } from "redis"
 import { ReducerCb } from "./types"
 import { PartitionControl, State } from "./reducer.types"
-import { StoreAdapter } from "./stores/store-adapter"
+import { Store, StoreAdapter } from "./stores/store-adapter"
 
 
 export const eachBatch = async <T>(
@@ -11,20 +11,23 @@ export const eachBatch = async <T>(
     snapshotTopic: string,
     groupId: string,
     topic: string,
-    store: StoreAdapter,
+    stores: Map<number, Store>,
     cb: ReducerCb<T>,
     payload:EachBatchPayload,
     syncDB: ()=> Promise<void>,
 ) => {
+
     const { batch, heartbeat } = payload
     console.log('Each-batch batch', batch.topic, batch.partition, batch.messages.length, )
     const { messages } = batch
     const partition = batch.partition
     const partitionControlKey = getPartitionControlKey(partition)
-    const topicPrefix = `${topic}-`
     const producer = producers.get(partition)
     if (!producer)
         throw new Error(`No producer found for partition ${partition}`)
+    const store = stores.get(partition)
+    if (!store)
+        throw new Error(`No store found for partition ${payload.batch.partition}`)
     
     const tx = await producer.transaction()
     const nextStates = {}
@@ -37,7 +40,7 @@ export const eachBatch = async <T>(
             if (messageGroups[key]) {
                 messageGroups[key].push({ offset: message.offset, msg: value })
             } else {
-                keySets.push(key) // TODO: PUT PREFIXES
+                keySets.push(key) 
                 messageGroups[key] = [{ offset: message.offset, msg: value }]
             }
         }
@@ -47,21 +50,14 @@ export const eachBatch = async <T>(
         const reactions: TopicMessages[] = [{ topic: snapshotTopic, messages: [] }]
         const snapshotReactionIndex = 0
         const existentTopics = {}
-        
-
-
+    
         const lastPartitionControl:PartitionControl = states[0]  ??  { 
             baseOffset: 0,
             lastBatchSize: 0,
             predictedNextOffset: 0,
          }
-        
-        // if (lastOffsetinDb !== offsetsMap.get(partition))
-        //     throw new Error(`Offsets not equal, ${lastOffset} != ${offsetsMap.get(partition)}`)
-            /// TODO Make recovery
 
         for (const i in keySets) {
-
             let state: State = states[i] ?? {  }
             const key = keySets[i]
             if (key === partitionControlKey) {
@@ -122,7 +118,7 @@ export const eachBatch = async <T>(
         lastPartitionControl.baseOffset = baseOffset
         lastPartitionControl.lastBatchSize = messages.length
 
-        nextStates[partitionControlKey] = lastPartitionControl  // TODO Confirm this operations goes to the end
+        nextStates[partitionControlKey] = lastPartitionControl 
         await heartbeat()
         await tx.sendOffsets({
             consumerGroupId: groupId,
@@ -143,8 +139,7 @@ export const eachBatch = async <T>(
     }
 
     try{
-        // console.log('mset', nextStates)
-        await store.setMany(nextStates) // TODO COnfirm this operation is atomic completely, and lock keys
+        await store.setMany(nextStates) // TODO Confirm this operation is atomic completely, and lock keys
     }catch(err){
         console.error('Error setting states', err)
         await syncDB()
