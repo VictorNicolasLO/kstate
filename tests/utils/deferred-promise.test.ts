@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { createDeferredPromise } from "../packages/kstate/utils/deferred-promise";
+import { createDeferredPromise } from "../../packages/kstate/utils/deferred-promise";
 
 describe("createDeferredPromise", () => {
   it("should resolve a promise", async () => {

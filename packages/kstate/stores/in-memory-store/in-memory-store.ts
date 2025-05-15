@@ -1,7 +1,4 @@
-import { createClient } from "redis"
-import { Store, StoreAdapter } from "../store-adapter"
-
-
+import { Store } from "../store-adapter"
 
 export const getInMemoryStore = (memory: any): Store => {
     return {
