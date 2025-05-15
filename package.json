@@ -10,5 +10,8 @@
   },
   "devDependencies": {
     "bun-types": "^1.2.10"
+  },
+  "scripts": {
+    "test": "bun test"
   }
 }
