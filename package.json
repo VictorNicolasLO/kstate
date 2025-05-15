@@ -1,8 +1,12 @@
 {
   "name": "kstate",
-  "module": "index.ts",
+  "main": "packages/kstate/index.ts",
+  "types": "packages/kstate/index.ts",
   "type": "module",
-  "private": true,
+  "files": [
+    "packages/kstate/",
+    "README.md"
+  ],
   "dependencies": {
     "kafkajs": "^2.2.4",
     "redis": "^4.7.0",
@@ -14,5 +18,8 @@
   },
   "scripts": {
     "test": "bun test"
-  }
+  },
+  "description": "KState: Kafka and Redis state management library.",
+  "author": "Your Name <your.email@example.com>",
+  "license": "MIT"
 }
