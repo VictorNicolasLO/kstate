@@ -1,8 +1,8 @@
 {
-  "name": "kstate",
+  "name": "k-state",
   "version": "1.0.0",
-  "main": "packages/kstate/index.js",
-  "types": "packages/kstate/index.d.ts",
+  "main": "./index.js",
+  "types": "./index.ts",
   "type": "module",
   "files": [
     "packages/kstate/",
@@ -19,11 +19,12 @@
     "bun": "^0.6.0"
   },
   "scripts": {
-    "build": "bun build packages/kstate/index.ts --outdir dist/ --target node",
+    "build": "bun build ./index.ts --outdir ./ --target node",
+
     "prepublishOnly": "bun run build",
     "test": "bun test"
   },
-  "description": "KState: Kafka and Redis state management library.",
+  "description": "kstate: Kafka and Redis state management library.",
   "author": "Victor Nicolas Lizarraga Ochoa <victornicolaslo@hotmail.com>",
   "license": "MIT",
   "private": false,

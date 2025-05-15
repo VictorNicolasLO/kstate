@@ -28,7 +28,7 @@ K-state is a library for building robust, stateful event processors using Kafka 
 ## Installation
 
 ```sh
-npm install kstate
+npm install k-state
 ```
 
 ## Usage Example
