@@ -9,23 +9,15 @@ K-state is a library for building robust, stateful event processors using Kafka 
 - Consistency checks and syncing mechanisms ensure the store reflects the true state from Kafka.
 
 ## Features
-- Pluggable store adapters (Redis, in-memory, etc.)
+- Pluggable store adapters (Redis, in-memory, etc.) with automatic migration
 - Reducer-based event processing
 - Consistency checks and store syncing
 - Designed for high reliability in distributed systems
 
 ## Architecture
+![GSEC (1)](https://github.com/user-attachments/assets/499bdd87-2f37-4100-8ef2-baa631f15c39)
 
-```mermaid
-flowchart TD
-    A[Input Event from Kafka Topic] -->|Process| B[Reducer Logic]
-    B -->|Read/Write| C[Store Redis, etc.]
-    B -->|Emit| D[Output Kafka Topics]
-    C <--> E[Sync/Consistency Check]
-    D --> F[Downstream Consumers]
-    E -->|Reconcile| C
-    E -->|Reconcile| B
-```
+
 
 - **Kafka** is the source of truth for all events.
 - **Reducer Logic** processes each event, possibly reading/writing to the store.
