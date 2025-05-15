@@ -51,10 +51,27 @@ const store = createRedisStore({ url: 'redis://localhost:6379' })
 
 const kstate = createKState(store, kafka)
 
-kstate.fromTopic('input-topic').reduce(async (state, event) => {
-  // process event, update state, emit to other topics if needed
-  return state
-})
+kstate
+  .fromTopic<{ name: string }>('users')
+  .reduce((message, key, state) => {
+    // Initialize state if it doesn't exist
+    if (!state) {
+      state = { name: message.name, count: 0 }
+    }
+    // Update state
+    state.count++
+    // Optionally emit a reaction to another topic
+    return {
+      state,
+      reactions: [
+        {
+          topic: 'user-events',
+          key,
+          message: { user: state.name, event: 'updated', count: state.count }
+        }
+      ]
+    }
+  })
 ```
 
 ## Consistency & Syncing
