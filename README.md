@@ -20,7 +20,7 @@ K-state is a library for building robust, stateful event processors using Kafka 
 flowchart TD
     A[Input Event from Kafka Topic] -->|Process| B[Reducer Logic]
     B -->|Read/Write| C[Store Redis, etc.]
-    B -->|Emit| D[Output Kafka Topic(s)]
+    B -->|Emit| D[Output Kafka Topics]
     C <--> E[Sync/Consistency Check]
     D --> F[Downstream Consumers]
     E -->|Reconcile| C
