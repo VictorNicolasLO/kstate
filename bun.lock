@@ -9,11 +9,27 @@
       },
       "devDependencies": {
         "@types/bun": "^1.2.13",
+        "bun": "^0.6.0",
         "bun-types": "^1.2.10",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
       },
     },
   },
   "packages": {
+    "@oven/bun-darwin-aarch64": ["@oven/bun-darwin-aarch64@0.6.14", "", { "os": "darwin", "cpu": "arm64" }, "sha512-zdaXiab5UYHThmiKm+C1QFKYK08f6+AyEEpiVr7sVupWLnFPM/tabz/uglYGQeTudgKTUlUcOYevZ1IpU86AJQ=="],
+
+    "@oven/bun-darwin-x64": ["@oven/bun-darwin-x64@0.6.14", "", { "os": "darwin", "cpu": "x64" }, "sha512-WAHTBJZwE0sKbHWFkiTLuRZo3AquFI8HEJZlz/lDL1YgYLvhNmuW7yMsGqYxCMTK3lL2tUgXlQK5IV+twSxCXw=="],
+
+    "@oven/bun-darwin-x64-baseline": ["@oven/bun-darwin-x64-baseline@0.6.14", "", { "os": "darwin", "cpu": "x64" }, "sha512-ssRND1eXceAdAWWrec6tZ7pAZNAEvktyB7Tm9wgjBRMxyVi/0+HBq4yl7AJJ4VqQvyDqIMCAr7W8fv3xTi7gUw=="],
+
+    "@oven/bun-linux-aarch64": ["@oven/bun-linux-aarch64@0.6.14", "", { "os": "linux", "cpu": "arm64" }, "sha512-66hnNPEX8QPdsGuCn2PSa5O/YEntJEUA5+a4mKq2EOIs3XyUziSMOJGg3x/v3faTIcDaQKZpcUwrBjYMAK9A8w=="],
+
+    "@oven/bun-linux-x64": ["@oven/bun-linux-x64@0.6.14", "", { "os": "linux", "cpu": "x64" }, "sha512-nYvao1C0Nx5wO759cqFQmxDZo26wRfNsDHBhkcib/StTTjTaATvHQEMgSQpQLupbbuwE+aWFD6LY3GgeEqTrlQ=="],
+
+    "@oven/bun-linux-x64-baseline": ["@oven/bun-linux-x64-baseline@0.6.14", "", { "os": "linux", "cpu": "x64" }, "sha512-/ZpgWlkaWzcwYV0rJAOKv0CRFq73+/NNQfcNlyoEDY/TESYqYAIPVrMXTlZAmNe1ADhTSrueav11C6eoO/mr7g=="],
+
     "@redis/bloom": ["@redis/bloom@1.2.0", "", { "peerDependencies": { "@redis/client": "^1.0.0" } }, "sha512-HG2DFjYKbpNmVXsa0keLHp/3leGJz1mjh09f2RLGGLQZzSHpkmZWuwJbAvo3QcRY8p80m5+ZdXZdYOSBLlp7Cg=="],
 
     "@redis/client": ["@redis/client@1.6.0", "", { "dependencies": { "cluster-key-slot": "1.1.2", "generic-pool": "3.9.0", "yallist": "4.0.0" } }, "sha512-aR0uffYI700OEEH4gYnitAnv3vzVGXCFvYfdpu/CJKvk4pHfLPEy/JSZyrpQ+15WhXe1yJRXLtfQ84s4mEXnPg=="],
@@ -30,6 +46,8 @@
 
     "@types/node": ["@types/node@22.15.3", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-lX7HFZeHf4QG/J7tBZqrCAXwz9J5RD56Y6MpP0eJkka8p+K0RY/yBTW7CYFJ4VGCclxqOLKmiGP5juQc6MKgcw=="],
 
+    "bun": ["bun@0.6.14", "", { "optionalDependencies": { "@oven/bun-darwin-aarch64": "0.6.14", "@oven/bun-darwin-x64": "0.6.14", "@oven/bun-darwin-x64-baseline": "0.6.14", "@oven/bun-linux-aarch64": "0.6.14", "@oven/bun-linux-x64": "0.6.14", "@oven/bun-linux-x64-baseline": "0.6.14" }, "os": [ "linux", "darwin", ], "cpu": [ "x64", "arm64", ], "bin": { "bun": "bin/bun", "bunx": "bin/bun" } }, "sha512-0EorJvs4Ung607UGTqno8Mlx1ToEcYPpzlEiXTiX+ySyoBcEIUUy0TlPloryp8/QVRL9+fAoMwhJNQAjF2GuQQ=="],
+
     "bun-types": ["bun-types@1.2.10", "", { "dependencies": { "@types/node": "*" } }, "sha512-b5ITZMnVdf3m1gMvJHG+gIfeJHiQPJak0f7925Hxu6ZN5VKA8AGy4GZ4lM+Xkn6jtWxg5S3ldWvfmXdvnkp3GQ=="],
 
     "cluster-key-slot": ["cluster-key-slot@1.1.2", "", {}, "sha512-RMr0FhtfXemyinomL4hrWcYJxmX6deFdCxpJzhDttxgO1+bcCnkk+9drydLVDmAMG7NE6aN/fl4F7ucU/90gAA=="],
@@ -39,6 +57,8 @@
     "kafkajs": ["kafkajs@2.2.4", "", {}, "sha512-j/YeapB1vfPT2iOIUn/vxdyKEuhuY2PxMBvf5JWux6iSaukAccrMtXEY/Lb7OvavDhOWME589bpLrEdnVHjfjA=="],
 
     "redis": ["redis@4.7.0", "", { "dependencies": { "@redis/bloom": "1.2.0", "@redis/client": "1.6.0", "@redis/graph": "1.1.1", "@redis/json": "1.0.7", "@redis/search": "1.2.0", "@redis/time-series": "1.1.0" } }, "sha512-zvmkHEAdGMn+hMRXuMBtu4Vo5P6rHQjLoHftu+lBqq8ZTA3RCVC/WzD790bkKKiNFp7d5/9PcSD19fJyyRvOdQ=="],
+
+    "typescript": ["typescript@5.8.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ=="],
 
     "ulid": ["ulid@3.0.0", "", { "bin": { "ulid": "dist/cli.js" } }, "sha512-yvZYdXInnJve6LdlPIuYmURdS2NP41ZoF4QW7SXwbUKYt53+0eDAySO+rGSvM2O/ciuB/G+8N7GQrZ1mCJpuqw=="],
 

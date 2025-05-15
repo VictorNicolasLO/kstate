@@ -51,8 +51,8 @@ describe("getInMemoryStore", () => {
   });
 
   it("should isolate data between store instances and correspond to the dict passed", async () => {
-    const dict1 = {};
-    const dict2 = {};
+    const dict1: Record<string, any> = {} ;
+    const dict2: Record<string, any> = {};
     const store1 = getInMemoryStore(dict1);
     const store2 = getInMemoryStore(dict2);
     await store1.setMany({ key: "one" });

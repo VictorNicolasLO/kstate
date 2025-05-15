@@ -1,6 +1,6 @@
-import { Kafka, Producer } from "kafkajs";
-import { PartitionControl } from "./reducer.types";
-import { Store } from "./stores/store-adapter";
+import { Kafka, type Producer } from "kafkajs";
+import { type PartitionControl } from "./reducer.types";
+import { type Store } from "./stores/store-adapter";
 import { createDeferredPromise } from "./utils/deferred-promise";
 
 export const syncDB = async (
@@ -64,7 +64,7 @@ export const syncDB = async (
             }
             const { batch, heartbeat } = payload;
     
-            const states = {}
+            const states: {[key: string]: string}  = {}
             for (const message of batch.messages) {
                if(message.key === undefined || message.key === null) {
                     console.log('Message without key', message)

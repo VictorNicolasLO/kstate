@@ -36,7 +36,7 @@ describe("eachBatch", () => {
     };
   }
 
-  function makePayload(messages): any {
+  function makePayload(messages: string | any[]): any {
     // Minimal mock for kafkajs EachBatchPayload
     return {
       batch: {
@@ -58,7 +58,7 @@ describe("eachBatch", () => {
   it("should process a batch and commit state and offsets", async () => {
     const producers = new Map([[0, mockProducer() as any]]);
     const stores = new Map([[0, mockStore() as any]]);
-    const cb = (msg, key, state, ctx) => ({ state: { ...msg, processed: true }, reactions: [] });
+    const cb = (msg: any) => ({ state: { ...msg, processed: true }, reactions: [] });
     const payload = makePayload([
       { key: Buffer.from("foo"), value: Buffer.from(JSON.stringify({ a: 1 })), offset: "10" },
     ]);
@@ -152,7 +152,7 @@ describe("eachBatch", () => {
   it("should abort transaction and call syncDB on error in setMany", async () => {
     const producers = new Map([[0, mockProducer() as any]]);
     const stores = new Map([[0, { ...mockStore(), setMany: async () => { throw new Error("setMany fail"); } } as any]]);
-    const cb = (msg, key, state, ctx) => ({ state: { ...msg, processed: true }, reactions: [] });
+    const cb = (msg: any, key: any, state: any, ctx: any) => ({ state: { ...msg, processed: true }, reactions: [] });
     const payload = makePayload([
       { key: Buffer.from("foo"), value: Buffer.from(JSON.stringify({ a: 1 })), offset: "10" },
     ]);

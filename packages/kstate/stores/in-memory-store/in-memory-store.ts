@@ -1,4 +1,4 @@
-import { Store } from "../store-adapter"
+import { type Store } from "../store-adapter"
 
 export const getInMemoryStore = (memory: any): Store => {
     return {

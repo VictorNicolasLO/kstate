@@ -1,5 +1,5 @@
 import { createClient } from "redis"
-import { Store, StoreAdapter } from "../store-adapter"
+import type { Store, StoreAdapter } from "../store-adapter"
 
 let connected = false
 
@@ -23,6 +23,7 @@ const getRedisStore = (
         },
         connect: async () => {
             if (connected) return
+            connected = true
             await redisClient.connect()
         } ,
         disconnect: async () => {},

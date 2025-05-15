@@ -1,16 +1,10 @@
 import {
-    createClient,
-    RedisClientOptions,
-    RedisClientType
-} from 'redis'
-
-import {
     Kafka,
-    KafkaConfig
 } from 'kafkajs'
-import { KafkaOptions, RedisOptions, ReducerCb } from './types'
+import {type ReducerCb } from './types'
 import { startReducer } from './reducer'
-import { StoreAdapter } from './stores/store-adapter'
+import {type StoreAdapter } from './stores/store-adapter'
+import { createInMemoryStore } from './stores/in-memory-store/in-memory-store'
 import { createRedisStore } from './stores/redis-store/redis-store'
 
 
@@ -27,5 +21,7 @@ export const createKState = (
         fromTopic: fromTopic(store, kafkaCLient),
     }
 }
+
+export { createInMemoryStore, createRedisStore }
 
 
