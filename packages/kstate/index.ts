@@ -9,8 +9,8 @@ import { createRedisStore } from './stores/redis-store/redis-store'
 
 
 const fromTopic = (store: StoreAdapter, kafkaClient: Kafka) =>
-    <T>(topic: string, topicOptions?: any) => ({
-        reduce: (cb: ReducerCb<T>) => startReducer(cb, kafkaClient, store, topic)
+    <T>(topic: string, topicOptions?: { batch_limit? : number}) => ({
+        reduce: (cb: ReducerCb<T>) => startReducer(cb, kafkaClient, store, topic, topicOptions)
     })
 
 export const createKState = (

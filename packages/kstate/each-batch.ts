@@ -131,6 +131,7 @@ export const eachBatch = async <T>(
             }],
         });
         await tx.commit()
+        payload.resolveOffset(batch.lastOffset());
     } catch (err) {
         console.error('Transaction failed, aborting:', err);
         await tx.abort();

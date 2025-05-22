@@ -1,11 +1,13 @@
 {
   "name": "k-state",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "./index.js",
   "types": "./index.ts",
   "type": "module",
   "files": [
     "packages/kstate/",
+    "index.ts",
+    "index.js",
     "README.md"
   ],
   "dependencies": {
