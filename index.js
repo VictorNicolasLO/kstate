@@ -103,6 +103,7 @@ var eachBatch = async (producers, getPartitionControlKey, snapshotTopic, groupId
       }]
     });
     await tx.commit();
+    payload.resolveOffset(batch.lastOffset());
   } catch (err) {
     console.error("Transaction failed, aborting:", err);
     await tx.abort();
@@ -263,7 +264,7 @@ var createTransactionalProducer = async (kafkaClient, topic, partition) => {
   await producer.connect();
   return producer;
 };
-var startReducer = async (cb, kafkaClient, storeAdapter, topic) => {
+var startReducer = async (cb, kafkaClient, storeAdapter, topic, options) => {
   const groupId = `kstate-${topic}-group`;
   const snapshotTopic = `${topic}-snapshots`;
   const getPartitionControlKey = (partition) => `snapshot-offset-${topic}-${partition}`;
@@ -278,7 +279,7 @@ var startReducer = async (cb, kafkaClient, storeAdapter, topic) => {
   const stores = new Map;
   const consumer = kafkaClient.consumer({ groupId, readUncommitted: false });
   await consumer.connect();
-  await consumer.subscribe({ topic, fromBeginning: false });
+  await consumer.subscribe({ topic, fromBeginning: true });
   consumer.on("consumer.group_join", async (e) => {
     console.log("Group join", e);
     for (const partition of producers.values()) {
@@ -307,11 +308,26 @@ var startReducer = async (cb, kafkaClient, storeAdapter, topic) => {
     console.log("Group join DONE -- resume", assignedPartitions, producers.size);
     consumer.resume([{ topic, partitions: assignedPartitions }]);
   });
+  const BATCH_LIMIT = options.batch_limit || 5000;
   consumer.run({
     autoCommit: false,
     partitionsConsumedConcurrently: concurrencyNumber,
-    eachBatchAutoResolve: true,
-    eachBatch: (payload) => eachBatch(producers, getPartitionControlKey, snapshotTopic, groupId, topic, stores, cb, payload, () => syncDB(kafkaClient, stores, topic, payload.batch.partition, snapshotTopic, getPartitionControlKey(payload.batch.partition), producers))
+    eachBatchAutoResolve: false,
+    eachBatch: async (payload) => {
+      for (let i = 0;i < payload.batch.messages.length; i += BATCH_LIMIT) {
+        const messages = payload.batch.messages.slice(i, i + BATCH_LIMIT);
+        await eachBatch(producers, getPartitionControlKey, snapshotTopic, groupId, topic, stores, cb, {
+          ...payload,
+          batch: {
+            ...payload.batch,
+            messages,
+            lastOffset() {
+              return messages[messages.length - 1].offset;
+            }
+          }
+        }, () => syncDB(kafkaClient, stores, topic, payload.batch.partition, snapshotTopic, getPartitionControlKey(payload.batch.partition), producers));
+      }
+    }
   });
 };
 
@@ -402,7 +418,7 @@ var createRedisStore = (redisClient) => {
 
 // packages/kstate/index.ts
 var fromTopic = (store, kafkaClient) => (topic, topicOptions) => ({
-  reduce: (cb) => startReducer(cb, kafkaClient, store, topic)
+  reduce: (cb) => startReducer(cb, kafkaClient, store, topic, topicOptions)
 });
 var createKState = (store, kafkaCLient) => {
   return {

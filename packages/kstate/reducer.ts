@@ -87,7 +87,7 @@ export const startReducer = async <T>(
     })
 
     // Consuming messages
-    const BATCH_LIMIT = options.batch_limit || 5000
+    const BATCH_LIMIT = options && options.batch_limit ?  options.batch_limit : 5000
     // Consuming messages and dosify big amount of them
 
     consumer.run({
